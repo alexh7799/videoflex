@@ -2,8 +2,3 @@ env
 .env
 db.sqlite3
 user_auth_app/api
-.env.template
-.dockerignore
-backend.Dockerfile
-backend.entrypoint.sh
-docker-compose.yml
