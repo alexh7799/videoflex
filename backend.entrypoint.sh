@@ -17,6 +17,7 @@ echo "PostgreSQL ist bereit - fahre fort..."
 python manage.py collectstatic --noinput
 python manage.py makemigrations
 python manage.py migrate
+python manage.py test
 
 # Create a superuser using environment variables
 # (Dein Superuser-Erstellungs-Code bleibt gleich)

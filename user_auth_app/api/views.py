@@ -1,13 +1,16 @@
-import django_rq
 import base64
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.contrib.sites.shortcuts import get_current_site
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from .serializers import RegistrationSerializer
 from ..tasks import send_activation_email, send_password_reset_email
 
@@ -27,17 +30,28 @@ class RegistrationView(APIView):
         serializer = RegistrationSerializer(data=request.data)
         data = {}
         if serializer.is_valid():
-            saved_account = serializer.save()
-            queue = django_rq.get_queue('default', autocommit=True)
-            queue.enqueue(send_activation_email, saved_account, request)
-            data = { 'username': saved_account.username, 'email': saved_account.email, 'user_id': saved_account.pk }
-            return Response(data)
+            email = serializer.validated_data.get('email')
+            user = User.objects.get(email=email)
+            uid = urlsafe_base64_encode(force_bytes(user.id))
+            token = user.activation_token
+            domain =  get_current_site(request).domain
+            send_activation_email(domain, uid, token, user.email)
+            data = {
+                'user': {
+                    'email': user.email, 
+                    'id': user.id 
+                }, 
+                'token': token 
+            }
+            print(data)
+            return Response(data, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class CookieLoginView(TokenObtainPairView):
     permission_classes = [AllowAny]
+    serializer_class = TokenObtainPairSerializer
     
     def post(self, request, *args, **kwargs):
         """
@@ -169,9 +183,12 @@ class PasswordResetView(APIView):
         if not email:
             return Response({'detail': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            queue = django_rq.get_queue('default', autocommit=True)
-            userExists = queue.enqueue(send_password_reset_email, email, request) 
-        except userExists.DoesNotExist:
+            user = User.objects.get(email=email)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            token = default_token_generator.make_token(user)
+            domain = get_current_site(request).domain
+            send_password_reset_email(domain, uid, token, email)
+        except User.DoesNotExist:
             pass
         return Response({'detail': 'An email has been sent to reset your password.'}, status=status.HTTP_200_OK)
 
@@ -193,7 +210,7 @@ class PasswordResetConfirmView(APIView):
             required fields are missing, the user ID is invalid, or the token is invalid or expired.
         """
         new_password = request.data.get('new_password')
-        confirm_password = request.data.get('confirm_password')
+        confirm_password = request.data.get('confirmed_password')
         if not new_password or not confirm_password:
             return Response({'detail': 'Both password fields are required.'}, status=status.HTTP_400_BAD_REQUEST)
         if new_password != confirm_password:

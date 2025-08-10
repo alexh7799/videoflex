@@ -6,11 +6,11 @@ from django.utils.crypto import get_random_string
 
 
 class RegistrationSerializer(serializers.ModelSerializer):
-    repeated_password = serializers.CharField(write_only=True)
+    confirmed_password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
-        fields = ['email', 'password', 'repeated_password']
+        fields = ['username', 'email', 'password', 'confirmed_password']
         extra_kwargs = {
             'password': {
                 'write_only': True
@@ -20,25 +20,21 @@ class RegistrationSerializer(serializers.ModelSerializer):
             }
         }
 
-    def validate_repeated_password(self, value):
-        password = self.initial_data.get('password')
-        if password and value and password != value:
-            raise serializers.ValidationError('Passwords do not match')
-        return value
-
-    def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError('Email already exists')
-        return value
+    def validate(self, data):
+        if data['password'] != data['confirmed_password']:
+            raise serializers.ValidationError({'error': 'passwords do not match'}, status=400)
+        if User.objects.filter(email=data['email']).exists():
+            raise serializers.ValidationError({'error': 'This email is already in use'}, status=400)
+        return data
     
     def create(self, validated_data):
+        validated_data.pop('confirmed_password')
         user = User.objects.create_user(
             username=validated_data['email'],
             email=validated_data['email'],
             password=validated_data['password'],
             is_active=False
         )
-        
         activation_token = get_random_string(2048)
         user.activation_token = activation_token
         user.save()
@@ -58,3 +54,5 @@ class RegistrationSerializer(serializers.ModelSerializer):
     #     account.save()
     #     return account
     
+class TokenObtainPairSerializerWithCookie(TokenObtainPairSerializer):
+    pass
