@@ -1,17 +1,16 @@
+import django_rq
+import base64
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
-from django.core.mail import send_mail
-import base64
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from user_auth_app.models import UserProfile
 from .serializers import RegistrationSerializer
+from ..tasks import send_activation_email, send_password_reset_email
+
 
 
 class RegistrationView(APIView):
@@ -20,33 +19,18 @@ class RegistrationView(APIView):
     def post(self, request):
         """
         Post method to handle registration request.
-
         Args:
             request (Request): The request object
-
         Returns:
             Response: A response object with the registered user's information if successful, otherwise a response object with the errors.
         """
         serializer = RegistrationSerializer(data=request.data)
-
         data = {}
         if serializer.is_valid():
             saved_account = serializer.save()
-            # uid = urlsafe_base64_encode(force_bytes(saved_account.pk))
-            # token = saved_account.activation_token
-            # activation_link = f'http://deine-domain/api/activate/{uid}/{token}/'
-            # send_mail(
-            #     'Account Activation',
-            #     f'Click the link to activate your account: {activation_link}',
-            #     'noreply@deine-domain',
-            #     [saved_account.email],
-            #     fail_silently=True,
-            # )
-            data = {
-                'username': saved_account.username,
-                'email': saved_account.email,
-                'user_id': saved_account.pk
-            }
+            queue = django_rq.get_queue('default', autocommit=True)
+            queue.enqueue(send_activation_email, saved_account, request)
+            data = { 'username': saved_account.username, 'email': saved_account.email, 'user_id': saved_account.pk }
             return Response(data)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -58,12 +42,10 @@ class CookieLoginView(TokenObtainPairView):
     def post(self, request, *args, **kwargs):
         """
         Post method to handle login request and set refresh and access tokens to cookies.
-
         Args:
             request (Request): The request object
             *args: Variable length argument list
             **kwargs: Arbitrary keyword arguments
-
         Returns:
             Response: A response object with the access token and refresh token as cookies.
         """
@@ -89,12 +71,10 @@ class ActivationView(APIView):
     def get(self, request, uidb64, token):
         """
         Handles the account activation process using a token.
-
         Args:
             request: The HTTP request object.
             uidb64: Base64 encoded user ID.
             token: Activation token.
-
         Returns:
             Response object indicating the success or failure of the activation process.
             - On success: Returns a 200 OK status with a success message.
@@ -105,7 +85,6 @@ class ActivationView(APIView):
             user = User.objects.get(pk=uid)
         except (User.DoesNotExist, ValueError, TypeError, base64.binascii.Error):
             return Response({'message': 'Activation failed.'}, status=status.HTTP_400_BAD_REQUEST)
-
         if hasattr(user, 'activation_token') and user.activation_token == token and not user.is_active:
             user.is_active = True
             user.activation_token = ''
@@ -122,10 +101,8 @@ class LogoutView(APIView):
         """
         Handles the logout process by blacklisting the refresh token and deleting access and refresh
         tokens from the cookies.
-
         Args:
             request (Request): The request object with cookies containing the refresh token.
-
         Returns:
             Response: A response object indicating the success or failure of the logout process.
             - On success: Returns a 200 OK status with a success message and deletes cookies.
@@ -145,6 +122,7 @@ class LogoutView(APIView):
         response.delete_cookie('refresh_token')
         return response
 
+
 class TokenRefreshView(APIView):
     permission_classes = [AllowAny]
 
@@ -152,10 +130,8 @@ class TokenRefreshView(APIView):
         """
         Handles the refresh token request by returning a new access token and updating the access_token
         cookie.
-
         Args:
             request (Request): The request object with the refresh_token cookie.
-
         Returns:
             Response: A response object with the new access token and a success message.
             - On success: Returns a 200 OK status with a new access token and updates the access_token cookie.
@@ -170,10 +146,7 @@ class TokenRefreshView(APIView):
             access_token = str(token.access_token)
         except TokenError:
             return Response({'detail': 'Invalid refresh token.'}, status=status.HTTP_401_UNAUTHORIZED)
-        response = Response({
-            'detail': 'Token refreshed',
-            'access': access_token
-        }, status=status.HTTP_200_OK)
+        response = Response({'detail': 'Token refreshed', 'access': access_token}, status=status.HTTP_200_OK)
         response.set_cookie('access_token', value=access_token, secure=True, httponly=True, samesite='Lax')
         return response
 
@@ -182,24 +155,24 @@ class PasswordResetView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        """
+        Handles the password reset request by sending an email to the user with a link to
+        reset their password.
+        Args:
+            request (Request): The request object with the email to reset the password for.
+        Returns:
+            Response: A response object with a success message indicating that an email has been sent to reset the password.
+            - On success: Returns a 200 OK status with a success message.
+            - On failure: Returns a 400 Bad Request status with an error message if the email is missing or invalid.
+        """
         email = request.data.get('email')
         if not email:
             return Response({'detail': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            user = User.objects.get(email=email)
-            # uid = urlsafe_base64_encode(force_bytes(user.pk))
-            # token = default_token_generator.make_token(user)
-            # reset_link = f'http://deine-domain/api/password_reset_confirm/{uid}/{token}/'
-            # send_mail(
-            #     'Password Reset',
-            #     f'Click the link to reset your password: {reset_link}',
-            #     'noreply@deine-domain',
-            #     [email],
-            #     fail_silently=True,
-            # )
-        except User.DoesNotExist:
+            queue = django_rq.get_queue('default', autocommit=True)
+            userExists = queue.enqueue(send_password_reset_email, email, request) 
+        except userExists.DoesNotExist:
             pass
-
         return Response({'detail': 'An email has been sent to reset your password.'}, status=status.HTTP_200_OK)
 
 
@@ -209,12 +182,10 @@ class PasswordResetConfirmView(APIView):
     def post(self, request, uidb64, token):
         """
         Handles the password reset confirmation process.
-
         Args:
             request (Request): The HTTP request object containing the new password and confirmation password.
             uidb64 (str): Base64 encoded user ID.
             token (str): Password reset token.
-
         Returns:
             Response: A response object indicating the success or failure of the password reset process.
             - On success: Returns a 200 OK status with a success message.
@@ -237,5 +208,3 @@ class PasswordResetConfirmView(APIView):
         user.set_password(new_password)
         user.save()
         return Response({'detail': 'Your Password has been successfully reset.'}, status=status.HTTP_200_OK)
-
-

@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'django_rq',
     'video_app',
     'user_auth_app',
+    'upload_app.apps.UploadAppConfig',
 ]
 
 MIDDLEWARE = [
