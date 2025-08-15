@@ -10,7 +10,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'confirmed_password']
+        fields = [ 'email', 'password', 'confirmed_password']
         extra_kwargs = {
             'password': {
                 'write_only': True
@@ -22,9 +22,9 @@ class RegistrationSerializer(serializers.ModelSerializer):
 
     def validate(self, data):
         if data['password'] != data['confirmed_password']:
-            raise serializers.ValidationError({'error': 'passwords do not match'}, status=400)
+            raise serializers.ValidationError({'error': 'passwords do not match'})
         if User.objects.filter(email=data['email']).exists():
-            raise serializers.ValidationError({'error': 'This email is already in use'}, status=400)
+            raise serializers.ValidationError({'error': 'This email is already in use'})
         return data
     
     def create(self, validated_data):
@@ -35,24 +35,37 @@ class RegistrationSerializer(serializers.ModelSerializer):
             password=validated_data['password'],
             is_active=False
         )
-        activation_token = get_random_string(2048)
+        activation_token = get_random_string(148)
         user.activation_token = activation_token
         user.save()
         return {
-            'user': {
-                'id': user.id,
-                'email': user.email
-            },
+            'user': user,
             'token': activation_token
         }
+        
 
-    # def save(self):
-    #     pw = self.validated_data['password']
 
-    #     account = User(email=self.validated_data['email'], username=self.validated_data['email'])
-    #     account.set_password(pw)
-    #     account.save()
-    #     return account
+class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
     
-class TokenObtainPairSerializerWithCookie(TokenObtainPairSerializer):
-    pass
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if 'username' in self.fields:
+            self.fields.pop('username')
+
+    def validate(self, attrs):
+        email = attrs.get('email')
+        password = attrs.get('password')
+        try:
+            user = User.objects.get(email=email)
+            if not user.is_active:
+                raise serializers.ValidationError('User account is inactive.')
+        except User.DoesNotExist:
+            raise serializers.ValidationError('Invalid email or password.')
+        if not email or not password:
+            raise serializers.ValidationError('Email and password are required.')
+        if not user.check_password(password):
+            raise serializers.ValidationError('Invalid email or password.')
+        data = super().validate({"username": user.username, "password": password})
+        return data

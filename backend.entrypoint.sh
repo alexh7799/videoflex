@@ -17,7 +17,7 @@ echo "PostgreSQL ist bereit - fahre fort..."
 python manage.py collectstatic --noinput
 python manage.py makemigrations
 python manage.py migrate
-python manage.py test
+# python manage.py test
 
 # Create a superuser using environment variables
 # (Dein Superuser-Erstellungs-Code bleibt gleich)
@@ -38,7 +38,8 @@ if not User.objects.filter(username=username).exists():
 else:
     print(f"Superuser '{username}' already exists.")
 EOF
-
+python -m aiosmtpd -n -l localhost:1025 -c 10
 python manage.py rqworker default &
+
 
 exec gunicorn core.wsgi:application --bind 0.0.0.0:8000

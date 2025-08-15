@@ -34,8 +34,9 @@ class UserAuthTests(APITestCase):
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, 201)
-        self.assertIn({"user": { "id": response.data['user']['id'], "email": response.data['user']['email'] }, "token": response.data['token']})
-        self.assertTrue(User.objects.filter(email='newuser@example.com').exists())
+        self.assertEqual({"user": { "id": response.data['user']['id'], "email": response.data['user']['email'] }, "token": response.data['token']}, response.data)
+        self.assertTrue(User.objects.filter(email=response.data['user']['email']).exists())
+        
 
     def test_activation(self):
         """
@@ -44,15 +45,8 @@ class UserAuthTests(APITestCase):
         Creates an inactive user, then uses the activation view to activate their account.
         and that the user's is_active field is now True.
         """
-        url = reverse('register')
-        data = {
-            'email': 'newuser@example.com',
-            'password': 'securepassword',
-            'confirmed_password': 'securepassword'
-        }
-        response = self.client.post(url, data, format='json')
-        uid = urlsafe_base64_encode(force_bytes(response.data['user']['id']))
-        token = response.data['token']
+        uid = urlsafe_base64_encode(force_bytes(self.user.id))
+        token = default_token_generator.make_token(self.user)
         url = reverse('activate', args=[uid, token])
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
@@ -66,11 +60,12 @@ class UserAuthTests(APITestCase):
         Creates an active user, then authenticates that user and makes a POST request to the login endpoint.
         Verifies that the response has a 200 status code and includes the access and refresh tokens.
         """
+    
+        url = reverse('login')
         self.user.is_active = True
         self.user.save()
-        url = reverse('login')
         data = {
-            'username': 'testuser@example.com',
+            'email': self.user.email,
             'password': 'testpassword'
         }
         response = self.client.post(url, data, format='json')
@@ -85,15 +80,20 @@ class UserAuthTests(APITestCase):
         Creates an active user, then authenticates that user and makes a POST request to the logout endpoint.
         Verifies that the response has a 200 status code and a success message, and that the refresh token is now invalid.
         """
-        login_url = reverse('login')
-        login_data = {'username': 'testuser@example.com', 'password': 'testpassword'}
-        login_response = self.client.post(login_url, login_data, format='json')
-        self.client.cookies = login_response.cookies
+        url = reverse('login')
         self.user.is_active = True
         self.user.save()
+        data = {
+            'email': self.user.email,
+            'password': 'testpassword'
+        }
+        response = self.client.post(url, data, format='json')
+        self.client.cookies = response.cookies
+        self.assertIn('access_token', self.client.cookies)
+        self.assertIn('refresh_token', self.client.cookies)
         url = reverse('logout')
-        self.client.force_authenticate(user=self.user)
-        response = self.client.post(url, format='json')
+        headers = {'AUTHORIZATION': f'Bearer {self.client.cookies.get("refresh_token")}'}
+        response = self.client.post(url, format='json', **headers)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['detail'], 'Logout successful! All tokens will be deleted. Refresh token is now invalid.')
 
@@ -117,14 +117,15 @@ class UserAuthTests(APITestCase):
         Creates an active user, then uses the password reset confirmation view to change their password.
         and that the user's password has been changed to the new value.
         """
-        self.user.is_active = True
-        self.user.save()
+        url = reverse('password_reset')
+        data = {'email': 'testuser@example.com'}
+        response = self.client.post(url, data, format='json')
         uid = urlsafe_base64_encode(force_bytes(self.user.pk))
         token = default_token_generator.make_token(self.user)
         url = reverse('password_confirm', args=[uid, token])
         data = {
             'new_password': 'newsecurepassword',
-            'confirmed_password': 'newsecurepassword'
+            'confirm_password': 'newsecurepassword'
         }
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, 200)

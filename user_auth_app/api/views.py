@@ -1,7 +1,7 @@
 import base64
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes
 from django.contrib.sites.shortcuts import get_current_site
 from rest_framework import status
@@ -10,8 +10,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .serializers import RegistrationSerializer
+from .serializers import RegistrationSerializer, CustomTokenObtainPairSerializer
 from ..tasks import send_activation_email, send_password_reset_email
 
 
@@ -30,20 +29,19 @@ class RegistrationView(APIView):
         serializer = RegistrationSerializer(data=request.data)
         data = {}
         if serializer.is_valid():
-            email = serializer.validated_data.get('email')
-            user = User.objects.get(email=email)
+            result = serializer.save()
+            user = result['user']
+            token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.id))
-            token = user.activation_token
             domain =  get_current_site(request).domain
             send_activation_email(domain, uid, token, user.email)
             data = {
                 'user': {
                     'email': user.email, 
-                    'id': user.id 
+                    'id': user.id
                 }, 
                 'token': token 
             }
-            print(data)
             return Response(data, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -51,7 +49,7 @@ class RegistrationView(APIView):
 
 class CookieLoginView(TokenObtainPairView):
     permission_classes = [AllowAny]
-    serializer_class = TokenObtainPairSerializer
+    serializer_class = CustomTokenObtainPairSerializer
     
     def post(self, request, *args, **kwargs):
         """
@@ -63,20 +61,21 @@ class CookieLoginView(TokenObtainPairView):
         Returns:
             Response: A response object with the access token and refresh token as cookies.
         """
-        serializer = self.serializer_class(data=request.data)
-        response = super().post(request, *args, **kwargs)
-        refresh_token = response.data.get('refresh')
-        access_token = response.data.get('access')
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        refresh_token = serializer.validated_data['refresh']
+        access_token = serializer.validated_data['access']
+        response = Response({'message': 'Login successful'}, status=status.HTTP_200_OK)
         if refresh_token:
-            response.set_cookie('refresh_token', value=refresh_token, secure=True, httponly=True, samesite='Lax')
+            response.set_cookie('refresh_token', str(refresh_token), secure=True, httponly=True, samesite='Lax')
         else:
             return Response(serializer.errors, content_type='application/json', status=status.HTTP_400_BAD_REQUEST)
         if access_token:
-            response.set_cookie('access_token', value=access_token, secure=True, httponly=True, samesite='Lax')
+            response.set_cookie('access_token', str(access_token), secure=True, httponly=True, samesite='Lax')
         else:
             return Response(serializer.errors, content_type='application/json', status=status.HTTP_400_BAD_REQUEST)
-        response.data = {'message': 'Login successful'}
         return response
+
 
 
 class ActivationView(APIView):
@@ -95,13 +94,12 @@ class ActivationView(APIView):
             - On failure: Returns a 400 Bad Request status with an error message.
         """
         try:
-            uid = base64.urlsafe_b64decode(uidb64.encode()).decode()
-            user = User.objects.get(pk=uid)
+            id = urlsafe_base64_decode(uidb64).decode()
+            user = User.objects.get(pk=id)
         except (User.DoesNotExist, ValueError, TypeError, base64.binascii.Error):
-            return Response({'message': 'Activation failed.'}, status=status.HTTP_400_BAD_REQUEST)
-        if hasattr(user, 'activation_token') and user.activation_token == token and not user.is_active:
+            return Response({'message': id}, status=status.HTTP_400_BAD_REQUEST)
+        if default_token_generator.check_token(user, token) and not user.is_active:
             user.is_active = True
-            user.activation_token = ''
             user.save()
             return Response({'message': 'Account successfully activated.'}, status=status.HTTP_200_OK)
         else:
@@ -109,7 +107,7 @@ class ActivationView(APIView):
 
 
 class LogoutView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         """
@@ -184,12 +182,12 @@ class PasswordResetView(APIView):
             return Response({'detail': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
             user = User.objects.get(email=email)
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            uid = urlsafe_base64_encode(force_bytes(user.id))
             token = default_token_generator.make_token(user)
             domain = get_current_site(request).domain
             send_password_reset_email(domain, uid, token, email)
         except User.DoesNotExist:
-            pass
+            return Response({'detail': 'email does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'detail': 'An email has been sent to reset your password.'}, status=status.HTTP_200_OK)
 
 
@@ -210,13 +208,13 @@ class PasswordResetConfirmView(APIView):
             required fields are missing, the user ID is invalid, or the token is invalid or expired.
         """
         new_password = request.data.get('new_password')
-        confirm_password = request.data.get('confirmed_password')
+        confirm_password = request.data.get('confirm_password')
         if not new_password or not confirm_password:
             return Response({'detail': 'Both password fields are required.'}, status=status.HTTP_400_BAD_REQUEST)
         if new_password != confirm_password:
             return Response({'detail': 'Passwords do not match.'}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            uid = base64.urlsafe_b64decode(uidb64.encode()).decode()
+            uid = urlsafe_base64_decode(uidb64).decode()
             user = User.objects.get(pk=uid)
         except (User.DoesNotExist, ValueError, TypeError, base64.binascii.Error):
             return Response({'detail': 'Invalid link.'}, status=status.HTTP_400_BAD_REQUEST)

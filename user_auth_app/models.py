@@ -11,6 +11,7 @@ class UserProfile(models.Model):
         _type_: _description_
     """
     user = models.OneToOneField(User, on_delete=models.CASCADE)
+    activation_token = models.CharField(max_length=2048, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
