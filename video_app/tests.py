@@ -22,7 +22,7 @@ class VideoAppTests(APITestCase):
         )
         self.list_url = reverse('video-list')
         self.manifest_url = reverse('video-manifest', args=[self.video.id, '720p'])
-        self.segment_url = reverse('video-segment', args=[self.video.id, '720p', '000.ts'])
+        self.segment_url = reverse('video-segment', args=[self.video.id, '720p', 'index0.ts'])
 
     def authenticate(self):
         """

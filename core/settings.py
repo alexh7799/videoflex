@@ -33,13 +33,14 @@ DEBUG = os.getenv('DEBUG', default='True') == 'True'
 ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", default="localhost").split(",")
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = os.environ.get("CSRF_TRUSTED_ORIGINS", default="http://localhost:5500").split(",")
-EMAIL_HOST = os.getenv('EMAIL_HOST')
+
+EMAIL_HOST = os.getenv('EMAIL_HOST', default='localhost')
 EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'False') == 'True'
 EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', 'False') == 'True'
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', default='webmaster@localhost')
 
 
 # Application definition

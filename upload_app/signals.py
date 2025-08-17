@@ -1,8 +1,10 @@
 import os
+import shutil
 from django.dispatch import receiver
 from django.db.models.signals import post_save, post_delete
 from .models import FileUpload
-from .tasks import convert480p, convert720p, convert1080p
+from video_app.models import Video
+from .tasks import convert480p, convert720p, convert1080p, generate_thumbnail
 import django_rq
 
 
@@ -11,13 +13,19 @@ def video_post_save(sender, instance, created, **kwargs):
     """
     Signal handler for post-save actions on Video instances.
     """
-    if created:
+    if created and instance.file:
+        video = Video.objects.create(
+            title=instance.title,
+            description=instance.description,
+            category=instance.category
+        )
         queue = django_rq.get_queue('default', autocommit=True)
-        queue.enqueue(convert480p, instance.file.path)
-        queue.enqueue(convert720p, instance.file.path)
-        queue.enqueue(convert1080p, instance.file.path)
+        if instance.file and hasattr(instance.file, 'path'):
+            queue.enqueue(convert480p, instance.file.path, video.pk)
+            queue.enqueue(convert720p, instance.file.path, video.pk)
+            queue.enqueue(convert1080p, instance.file.path, video.pk)
+            queue.enqueue(generate_thumbnail, instance.file.path, video.pk)
     else:
-        # Perform actions after a Video instance is updated
         pass
 
 @receiver(post_delete, sender=FileUpload)
@@ -38,3 +46,22 @@ def video_post_delete(sender, instance, **kwargs):
                 if os.path.isfile(file_path):
                     os.remove(file_path)
             os.rmdir(hls_dir)
+            
+@receiver(post_delete, sender=Video)
+def delete_video_files_and_folder(sender, instance, **kwargs):
+    if instance.thumbnail:
+        instance.thumbnail.delete(save=False)
+    if instance.m3u8_480p:
+        instance.m3u8_480p.delete(save=False)
+    if instance.m3u8_720p:
+        instance.m3u8_720p.delete(save=False)
+    if instance.m3u8_1080p:
+        instance.m3u8_1080p.delete(save=False)
+    base_dir = os.path.join('media', 'uploads', 'videos', 'hls')
+    for res in ['480p', '720p', '1080p']:
+        folder = os.path.join(base_dir, res, str(instance.id))
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
+    thumb_folder = os.path.join('media', 'uploads', 'videos', 'thumbnails', str(instance.id))
+    if os.path.exists(thumb_folder):
+        shutil.rmtree(thumb_folder)

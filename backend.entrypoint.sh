@@ -38,7 +38,7 @@ if not User.objects.filter(username=username).exists():
 else:
     print(f"Superuser '{username}' already exists.")
 EOF
-python -m aiosmtpd -n -l localhost:1025 -c 10
+
 python manage.py rqworker default &
 
 
