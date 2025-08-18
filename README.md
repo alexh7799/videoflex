@@ -1,53 +1,53 @@
-# Videoflix – Django Video Streaming Plattform
+# Videoflix – Django Video Streaming Platform
 
-Dieses Projekt ist eine Video-Streaming-Plattform auf Basis von Django und Django REST Framework. Es unterstützt Video-Uploads, automatische HLS-Konvertierung, Thumbnails, Authentifizierung und das Ausliefern von Videos und Bildern über API-Endpunkte.
+This project is a video streaming platform based on Django and Django REST Framework. It supports video uploads, automatic HLS conversion, thumbnails, authentication, and serving videos and images via API endpoints.
 
 ## Features
 
-- Benutzer-Authentifizierung (JWT, Cookie)
-- Video-Upload und Verwaltung
-- Automatische HLS-Konvertierung (ffmpeg)
-- Thumbnails für Videos
-- API-Endpunkte für Videolisten, Manifest und Segmente
-- Auslieferung von Medien-Dateien über `/media/`
-- Statische Dateien über Whitenoise
-- Docker- und PostgreSQL-Support
+- User authentication (JWT, Cookie)
+- Video upload and management
+- Automatic HLS conversion (ffmpeg)
+- Thumbnails for videos
+- API endpoints for video list, manifest, and segments
+- Serving media files via `/media/`
+- Static files via Whitenoise
+- Docker and PostgreSQL support
 
-## Voraussetzungen
+## Requirements
 
 - Python 3.12+
-- Docker & Docker Compose (empfohlen)
-- ffmpeg (für lokale Entwicklung)
-- PostgreSQL (Standard, SQLite für Entwicklung möglich)
+- Docker & Docker Compose (recommended)
+- ffmpeg (for local development)
+- PostgreSQL (default, SQLite possible for development)
 
-## Installation & Start
+## Installation & Startup
 
-### 1. Repository klonen
+### 1. Clone the repository
 
 ```bash
 git clone git@github.com:alexh7799/videoflex.git
 cd videoflix
 ```
 
-### 2. Umgebungsvariablen anpassen
+### 2. Configure environment variables
 
-Kopiere die `.env.template` zu `.env` und passe die Werte an (z.B. Datenbank, Superuser, E-Mail).
+Copy `.env.template` to `.env` and adjust the values (e.g. database, superuser, email).
 
 ```bash
 cp .env.template .env
 ```
 
-### 3. Docker verwenden (empfohlen)
+### 3. Using Docker (recommended)
 
 ```bash
 docker-compose up --build
 ```
 
-- Die Datenbank und das Backend werden automatisch gestartet.
+- The database and backend will start automatically.
 
-### 4. Lokale Entwicklung (ohne Docker)
+### 4. Local development (without Docker)
 
-1. Virtuelle Umgebung erstellen und aktivieren:
+1. Create and activate a virtual environment:
 
     ```bash
     python -m venv venv
@@ -55,46 +55,46 @@ docker-compose up --build
     venv\Scripts\activate     # Windows
     ```
 
-2. Abhängigkeiten installieren:
+2. Install dependencies:
 
     ```bash
     pip install -r requirements.txt
     ```
 
-3. Datenbank migrieren:
+3. Migrate the database:
 
     ```bash
     python manage.py migrate
     ```
 
-4. Superuser erstellen:
+4. Create a superuser:
 
     ```bash
     python manage.py createsuperuser
     ```
 
-5. ffmpeg installieren (falls nicht vorhanden).
-6. Server starten:
+5. Install ffmpeg (if not already installed).
+6. Start the server:
 
     ```bash
     python manage.py runserver
     ```
 
-### 5. Medien- und statische Dateien
+### 5. Media and static files
 
-- Medien-Dateien liegen unter `media/` und werden im Debug-Modus von Django ausgeliefert.
-- Im Produktivbetrieb empfiehlt sich ein Webserver wie nginx für `/media/`.
-- Statische Dateien werden über Whitenoise ausgeliefert.
+- Media files are stored in `media/` and served by Django in debug mode.
+- For production, use a web server like nginx for `/media/`.
+- Static files are served via Whitenoise.
 
-## Nutzung
+## Usage
 
-- Backend erreichbar unter `http://localhost:8000/`
+- Backend available at `http://localhost:8000/`
 
-## Hinweise für andere Systeme
+## Notes for other systems
 
-- Passe die Pfade in `settings.py` (`MEDIA_ROOT`, `STATIC_ROOT`) ggf. an.
-- ffmpeg muss auf dem Zielsystem installiert und im PATH verfügbar sein.
-- Docker-Volumes und Ports können in `docker-compose.yml` angepasst werden.
-- Für Produktion: Richte einen Webserver (nginx) für `/media/` ein.
+- Adjust paths in `settings.py` (`MEDIA_ROOT`, `STATIC_ROOT`) if needed.
+- ffmpeg must be installed and available in the system PATH.
+- Docker volumes and ports can be changed in `docker-compose.yml`.
+- For production: Set up a web server (nginx) for `/media/`.
 
-**Viel Spaß mit Videoflix!**
+**Enjoy using Videoflix!**
