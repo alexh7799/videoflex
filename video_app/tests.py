@@ -17,7 +17,7 @@ class VideoAppTests(APITestCase):
         self.video = Video.objects.create(
             title='Test Movie',
             description='Test Description',
-            thumbnail_url='http://example.com/image.jpg',
+            thumbnail='http://example.com/image.jpg',
             category='Drama'
         )
         self.list_url = reverse('video-list')
@@ -55,6 +55,8 @@ class VideoAppTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['title'], 'Test Movie')
+        self.assertEqual(response.data[0]['description'], 'Test Description')
+        self.assertEqual(response.data[0]['category'], 'Drama')
 
     def test_manifest_not_found(self):
         """
