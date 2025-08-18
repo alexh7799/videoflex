@@ -8,7 +8,14 @@ class VideoSerializer(serializers.ModelSerializer):
         model = Video
         fields = ['id', 'created_at', 'title', 'description', 'thumbnail_url', 'category']
 
-    def get_thumbnail_url(self, obj):
+    def get_thumbnail_url(self, obj):   
+        """
+        Returns the URL of the thumbnail of the video object.
+        Args:
+            obj (Video): The video object.
+        Returns:
+            str: The URL of the thumbnail, or an empty string if the thumbnail is not set.
+        """
         request = self.context.get('request')
         if obj.thumbnail and hasattr(obj.thumbnail, 'url'):
             if request:

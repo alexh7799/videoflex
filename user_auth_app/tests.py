@@ -83,10 +83,7 @@ class UserAuthTests(APITestCase):
         url = reverse('login')
         self.user.is_active = True
         self.user.save()
-        data = {
-            'email': self.user.email,
-            'password': 'testpassword'
-        }
+        data = {'email': self.user.email,'password': 'testpassword'}
         response = self.client.post(url, data, format='json')
         self.client.cookies = response.cookies
         self.assertIn('access_token', self.client.cookies)
@@ -123,10 +120,7 @@ class UserAuthTests(APITestCase):
         uid = urlsafe_base64_encode(force_bytes(self.user.pk))
         token = default_token_generator.make_token(self.user)
         url = reverse('password_confirm', args=[uid, token])
-        data = {
-            'new_password': 'newsecurepassword',
-            'confirm_password': 'newsecurepassword'
-        }
+        data = { 'new_password': 'newsecurepassword', 'confirm_password': 'newsecurepassword'}
         response = self.client.post(url, data, format='json')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data['detail'], 'Your Password has been successfully reset.')

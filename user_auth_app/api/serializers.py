@@ -21,6 +21,24 @@ class RegistrationSerializer(serializers.ModelSerializer):
         }
 
     def validate(self, data):
+        """
+        Validates the given data.
+
+        Checks if the passwords and email provided in the data match and if the email is already in use.
+        If there are any errors, it raises a serializers.ValidationError. Otherwise, it returns the validated data.
+
+        Args:
+            data (dict): The data to be validated. It should have the following keys:
+                - 'password': The password provided by the user.
+                - 'confirmed_password': The confirmed password provided by the user.
+                - 'email': The email provided by the user.
+
+        Raises:
+            serializers.ValidationError: If the passwords do not match or if the email is already in use.
+
+        Returns:
+            dict: The validated data.
+        """
         if data['password'] != data['confirmed_password']:
             raise serializers.ValidationError({'error': 'passwords do not match'})
         if User.objects.filter(email=data['email']).exists():
@@ -28,6 +46,21 @@ class RegistrationSerializer(serializers.ModelSerializer):
         return data
     
     def create(self, validated_data):
+        """
+        Creates a new user with the given validated data.
+
+        Args:
+            validated_data (dict): A dictionary containing the validated data for the user.
+                It should have the following keys:
+                    - 'email': The email of the user.
+                    - 'password': The password of the user.
+        
+        Returns:
+            dict: A dictionary containing the user object and the activation token.
+                It has the following keys:
+                    - 'user': The created user object.
+                    - 'token': The activation token for the user.
+        """
         validated_data.pop('confirmed_password')
         user = User.objects.create_user(
             username=validated_data['email'],
@@ -50,11 +83,44 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     password = serializers.CharField(write_only=True)
     
     def __init__(self, *args, **kwargs):
+        """
+        Initializes the CustomTokenObtainPairSerializer.
+
+        This method overrides the __init__ method of the parent class
+        (TokenObtainPairSerializer) to remove the 'username' field from the
+        serializer fields.
+
+        Args:
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+
+        Returns:
+            None
+        """
         super().__init__(*args, **kwargs)
         if 'username' in self.fields:
             self.fields.pop('username')
 
     def validate(self, attrs):
+        """
+        Validates the given attributes.
+
+        This method validates the email and password provided in the attributes.
+        It checks if the user with the given email exists and if the user's account is active.
+        If the email or password is missing, it raises a serializers.ValidationError.
+        If the password is incorrect, it raises a serializers.ValidationError.
+        If all the checks pass, it returns the validated data.
+
+        Args:
+            attrs (dict): A dictionary containing the email and password.
+
+        Returns:
+            dict: The validated data.
+
+        Raises:
+            serializers.ValidationError: If the email or password is missing
+                                        or if the password is incorrect.
+        """
         email = attrs.get('email')
         password = attrs.get('password')
         try:

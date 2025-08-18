@@ -35,13 +35,7 @@ class RegistrationView(APIView):
             uid = urlsafe_base64_encode(force_bytes(user.id))
             domain =  get_current_site(request).domain
             send_activation_email(domain, uid, token, user.email)
-            data = {
-                'user': {
-                    'email': user.email, 
-                    'id': user.id
-                }, 
-                'token': token 
-            }
+            data = {'user': {'email': user.email, 'id': user.id}, 'token': token}
             return Response(data, status=status.HTTP_201_CREATED)
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

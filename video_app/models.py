@@ -2,6 +2,12 @@ from django.db import models
 from .tasks import hls_480p_upload_to, hls_720p_upload_to, hls_1080p_upload_to, thumbnail_upload_to
 
 class Video(models.Model):
+    """Model representing a video file.
+    Args:
+        models (Model): The base model class from Django.
+    Returns:
+        Model: The video model class.
+    """
     title = models.CharField(max_length=255)
     description = models.TextField()
     thumbnail = models.ImageField(upload_to=thumbnail_upload_to, blank=True, null=True)
