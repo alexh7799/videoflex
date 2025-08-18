@@ -59,7 +59,6 @@ class VideoManifestView(APIView):
     
     
 class VideoSegmentView(APIView):
-    authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
 
     def get(self, request, movie_id, resolution, segment):

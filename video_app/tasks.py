@@ -1,11 +1,14 @@
 import os
 import subprocess
+import shutil
+import io
 from django.conf import settings
 from django.core.files.base import ContentFile
-from .models import Video
 from moviepy import VideoFileClip
 from PIL import Image
-import io
+from .models import Video
+
+
 
 def convert480p(source, video_id):
     """
@@ -89,3 +92,18 @@ def generate_thumbnail(source, video_id):
     image.save(buffer, format='PNG')
     thumbnail_name = f'{video_id}_thumb.png'
     video.thumbnail.save(thumbnail_name, ContentFile(buffer.getvalue()), save=True)
+    
+def delete_video_directory(instance):
+    """
+    Delete the directory associated with a Video instance.
+    Args:
+        instance (Video): The Video instance whose directory is to be deleted.
+    """
+    base_dir = os.path.join('media', 'uploads', 'videos', 'hls')
+    for res in ['480p', '720p', '1080p']:
+        folder = os.path.join(base_dir, res, str(instance.id))
+        if os.path.exists(folder):
+            shutil.rmtree(folder)
+    thumb_folder = os.path.join('media', 'uploads', 'videos', 'thumbnails', str(instance.id))
+    if os.path.exists(thumb_folder):
+        shutil.rmtree(thumb_folder)

@@ -1,10 +1,9 @@
 import os
-import shutil
 from django.dispatch import receiver
 from django.db.models.signals import post_save, post_delete
 from .models import Video
 from video_app.models import Video
-from .tasks import convert480p, convert720p, convert1080p, generate_thumbnail
+from .tasks import convert480p, convert720p, convert1080p, generate_thumbnail, delete_video_directory
 import django_rq
 
 
@@ -45,11 +44,5 @@ def delete_video_files_and_folder(sender, instance, **kwargs):
         instance.m3u8_720p.delete(save=False)
     if instance.m3u8_1080p:
         instance.m3u8_1080p.delete(save=False)
-    base_dir = os.path.join('media', 'uploads', 'videos', 'hls')
-    for res in ['480p', '720p', '1080p']:
-        folder = os.path.join(base_dir, res, str(instance.id))
-        if os.path.exists(folder):
-            shutil.rmtree(folder)
-    thumb_folder = os.path.join('media', 'uploads', 'videos', 'thumbnails', str(instance.id))
-    if os.path.exists(thumb_folder):
-        shutil.rmtree(thumb_folder)
+    delete_video_directory(instance)
+    

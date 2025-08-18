@@ -123,7 +123,7 @@ class LogoutView(APIView):
             token.blacklist()
         except TokenError:
             return Response({'detail': 'Invalid refresh token.'}, status=status.HTTP_400_BAD_REQUEST)
-        response = Response({'detail': 'Logout successful! All tokens will be deleted. Refresh token is now invalid.'}, status=status.HTTP_200_OK)
+        response = Response({'detail': 'Logout successful!'}, status=status.HTTP_200_OK)
         response.delete_cookie('access_token')
         response.delete_cookie('refresh_token')
         return response
