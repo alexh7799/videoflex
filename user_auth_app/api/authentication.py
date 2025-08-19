@@ -12,8 +12,11 @@ class CookieJWTAuthentication(JWTAuthentication):
             tuple: A tuple containing the authenticated user and the validated token.
                 If the 'access_token' cookie is missing or invalid, returns None.
         """
-        token = request.COOKIES.get('access_token')
-        if not token:
+        access_token = request.COOKIES.get('access_token')
+        if not access_token:
             return None
-        validated_token = self.get_validated_token(token)
-        return self.get_user(validated_token), validated_token
+        try:
+            validated_token = self.get_validated_token(access_token)
+            return self.get_user(validated_token), validated_token
+        except Exception as e:
+            return None

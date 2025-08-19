@@ -9,10 +9,11 @@ from rest_framework.permissions import IsAuthenticated
 from ..models import Video
 from .serializers import VideoSerializer
 from user_auth_app.api.authentication import CookieJWTAuthentication
+from user_auth_app.api.permissions import HasValidCookieJWT
 
 class VideoListView(APIView):
     authentication_classes = [CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasValidCookieJWT]
 
     def get(self, request):  
         """
@@ -32,7 +33,7 @@ class VideoListView(APIView):
     
 class VideoManifestView(APIView):
     authentication_classes = [CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [HasValidCookieJWT]
 
     def get(self, request, movie_id, resolution):
         """
@@ -59,7 +60,8 @@ class VideoManifestView(APIView):
     
     
 class VideoSegmentView(APIView):
-    permission_classes = [IsAuthenticated]
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [HasValidCookieJWT]
 
     def get(self, request, movie_id, resolution, segment):
         """

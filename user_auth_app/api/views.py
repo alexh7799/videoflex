@@ -33,7 +33,7 @@ class RegistrationView(APIView):
             user = result['user']
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.id))
-            domain =  get_current_site(request).domain
+            domain =  request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
             send_activation_email(domain, uid, token, user.email)
             data = {'user': {'email': user.email, 'id': user.id}, 'token': token}
             return Response(data, status=status.HTTP_201_CREATED)
@@ -178,7 +178,7 @@ class PasswordResetView(APIView):
             user = User.objects.get(email=email)
             uid = urlsafe_base64_encode(force_bytes(user.id))
             token = default_token_generator.make_token(user)
-            domain = get_current_site(request).domain
+            domain = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
             send_password_reset_email(domain, uid, token, email)
         except User.DoesNotExist:
             return Response({'detail': 'email does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
