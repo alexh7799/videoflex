@@ -34,9 +34,7 @@ services:
     depends_on:
       - db
       - redis
-
-
-
+      
 
 volumes:
   postgres_data:
