@@ -1,4 +1,5 @@
 import base64
+import django_rq
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
@@ -34,7 +35,8 @@ class RegistrationView(APIView):
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.id))
             domain =  request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
-            send_activation_email(domain, uid, token, user.email)
+            queue = django_rq.get_queue('default', autocommit=True)
+            queue.enqueue(send_activation_email, domain, uid, token, user.email, user.username)
             data = {'user': {'email': user.email, 'id': user.id}, 'token': token}
             return Response(data, status=status.HTTP_201_CREATED)
         else:
@@ -179,7 +181,8 @@ class PasswordResetView(APIView):
             uid = urlsafe_base64_encode(force_bytes(user.id))
             token = default_token_generator.make_token(user)
             domain = request.META.get('HTTP_ORIGIN') or request.META.get('HTTP_REFERER')
-            send_password_reset_email(domain, uid, token, email)
+            queue = django_rq.get_queue('default', autocommit=True)
+            queue.enqueue(send_password_reset_email, domain, uid, token, email)
         except User.DoesNotExist:
             return Response({'detail': 'email does not exist.'}, status=status.HTTP_400_BAD_REQUEST)
         return Response({'detail': 'An email has been sent to reset your password.'}, status=status.HTTP_200_OK)
