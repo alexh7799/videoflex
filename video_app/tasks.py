@@ -2,6 +2,7 @@ import os
 import subprocess
 import shutil
 import io
+import time
 from django.conf import settings
 from django.core.files.base import ContentFile
 from moviepy import VideoFileClip
@@ -84,7 +85,14 @@ def generate_thumbnail(source, video_id):
     Returns:
         None
     """
-    video = Video.objects.get(pk=video_id)
+    waited = 0
+    while not Video.objects.filter(pk=video_id).exists() and waited < 10:
+        time.sleep(1)
+        waited += 1
+    try:
+        video = Video.objects.get(pk=video_id)
+    except Video.DoesNotExist:
+        return
     clip = VideoFileClip(source)
     frame = clip.get_frame(1)
     image = Image.fromarray(frame)

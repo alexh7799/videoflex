@@ -1,4 +1,5 @@
 import os
+import time
 from django.dispatch import receiver
 from django.db.models.signals import post_save, post_delete
 from .models import Video
@@ -13,12 +14,19 @@ def video_post_save(sender, instance, created, **kwargs):
     Signal handler for post-save actions on Video instances.
     """
     if created and instance.file:
-        queue = django_rq.get_queue('default', autocommit=True)
-        if instance.file and hasattr(instance.file, 'path'):
-            queue.enqueue(convert480p, instance.file.path, instance.pk)
-            queue.enqueue(convert720p, instance.file.path, instance.pk)
-            queue.enqueue(convert1080p, instance.file.path, instance.pk)
-            queue.enqueue(generate_thumbnail, instance.file.path, instance.pk)
+        try:
+            waited = 0
+            while not (instance.file and hasattr(instance.file, 'path') and os.path.isfile(instance.file.path)) and waited < 30:
+                time.sleep(1)
+                waited += 1
+            queue = django_rq.get_queue('default', autocommit=True)
+            if instance.file and hasattr(instance.file, 'path'):
+                queue.enqueue(convert480p, instance.file.path, instance.pk)
+                queue.enqueue(convert720p, instance.file.path, instance.pk)
+                queue.enqueue(convert1080p, instance.file.path, instance.pk)
+                queue.enqueue(generate_thumbnail, instance.file.path, instance.pk)
+        except Exception as e:
+            print(f"Error enqueuing video tasks: {e}")
     else:
         pass
 

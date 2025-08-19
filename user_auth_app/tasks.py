@@ -13,7 +13,7 @@ def send_activation_email(domain, uid, token, email, username):
 
     Sends an account activation link to the user's email address.
     """
-    activation_link = f"{domain}/activate/{uid}/{token}/"
+    activation_link = f"{domain}/pages/auth/activate.html?uid={uid}&token={token}"
     subject = "Confirm your email"
     html_content = f"""
     <html>
@@ -45,7 +45,7 @@ def send_password_reset_email(domain, uid, token, email):
         token (str): The token for password reset.
         email (str): The email address of the user.
     """
-    reset_link = f"{domain}/reset-password/{uid}/{token}/"
+    reset_link = f"{domain}/pages/auth/confirm_password.html?uid={uid}&token={token}"
     subject = "Reset your Password"
     html_content = f"""
     <html>
