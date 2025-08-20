@@ -86,7 +86,7 @@ def generate_thumbnail(source, video_id):
         None
     """
     waited = 0
-    while not Video.objects.filter(pk=video_id).exists() and waited < 10:
+    while not Video.objects.filter(pk=video_id).exists() and waited < 30:
         time.sleep(1)
         waited += 1
     try:
