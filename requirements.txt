@@ -36,6 +36,7 @@ python-dotenv==1.1.0
 redis==6.4.0
 requests==2.32.4
 rq==2.4.1
+sentry-sdk==2.35.0
 sqlparse==0.5.3
 tqdm==4.67.1
 tzdata==2025.2

@@ -14,12 +14,20 @@ from pathlib import Path
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
+import sentry_sdk
 
 load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+sentry_sdk.init(
+    dsn=os.getenv('SENTRY_DSN'),
+    send_default_pii=True,
+    traces_sample_rate=1.0,
+    profile_session_sample_rate=1.0,
+    profile_lifecycle="trace",
+)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
