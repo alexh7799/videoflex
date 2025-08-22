@@ -1,5 +1,17 @@
 from django.core.mail import EmailMultiAlternatives
 from django.conf import settings
+from email.mime.image import MIMEImage
+import os
+
+logo_path = os.path.join(settings.STATIC_ROOT, "logo_icon.png")
+
+def image_attachment():
+    image_filename = 'logo_icon.png'
+    with open(logo_path, 'rb') as f:
+        image_data = f.read()
+    msg_image = MIMEImage(image_data)
+    msg_image.add_header('Content-ID', f'<{image_filename}>')
+    return msg_image
 
 def send_activation_email(domain, uid, token, email, username):
     """
@@ -13,13 +25,14 @@ def send_activation_email(domain, uid, token, email, username):
 
     Sends an account activation link to the user's email address.
     """
+    msg_image = image_attachment()
     activation_link = f"{domain}/pages/auth/activate.html?uid={uid}&token={token}"
     subject = "Confirm your email"
     html_content = f"""
     <html>
       <body>
         <div style="text-align:center;">
-          <img src="{domain}/static/logo.png" alt="Videoflix" style="width:180px; margin-bottom:20px;" />
+          <img src="cid:logo_icon.png" alt="Videoflix" style="width:180px; margin-bottom:20px;" />
         </div>
         <p>Dear {username},</p>
         <p>Thank you for registering with <b style="color:#2d2dff;">Videoflix</b>. To complete your registration and verify your email address, please click the link below:</p>
@@ -32,6 +45,7 @@ def send_activation_email(domain, uid, token, email, username):
     </html>
     """
     msg = EmailMultiAlternatives(subject, '', settings.DEFAULT_FROM_EMAIL, [email])
+    msg.attach(msg_image)
     msg.attach_alternative(html_content, "text/html")
     msg.send()
 
@@ -45,6 +59,7 @@ def send_password_reset_email(domain, uid, token, email):
         token (str): The token for password reset.
         email (str): The email address of the user.
     """
+    msg_image = image_attachment()
     reset_link = f"{domain}/pages/auth/confirm_password.html?uid={uid}&token={token}"
     subject = "Reset your Password"
     html_content = f"""
@@ -58,12 +73,13 @@ def send_password_reset_email(domain, uid, token, email):
         <p>Please note that for security reasons, this link is only valid for 24 hours.</p>
        <p>If you did not request a password reset, please ignore this email.</p>                                                                                                                                                                 
         <p>Best regards,<br>Your Videoflix team!</p>
-        <div style="display:flex; text-align:center;">                                                                                                                                                                                                          
-         <img src="{domain}/assets/icons/logo_icon.svg" alt="Videoflix" style="width:180px; margin-top:20px;" />
+        <div style="display:flex; text-align:center; width:180px; margin-top:20px;">                                                                                                                                                                                                        
+         <img src="cid:logo_icon.png" alt="Videoflix" style="width:180px; margin-top:20px;" />
        </div>                                                                                                                                                                                                                                    
    </body>
    </html> 
     """
     msg = EmailMultiAlternatives(subject, '', settings.DEFAULT_FROM_EMAIL, [email])
+    msg.attach(msg_image)
     msg.attach_alternative(html_content, "text/html")
     msg.send()
