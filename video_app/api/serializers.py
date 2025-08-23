@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from ..models import Video
+import os
 
 class VideoSerializer(serializers.ModelSerializer):
     thumbnail_url = serializers.SerializerMethodField()
@@ -16,9 +17,7 @@ class VideoSerializer(serializers.ModelSerializer):
         Returns:
             str: The URL of the thumbnail, or an empty string if the thumbnail is not set.
         """
-        request = self.context.get('request')
+        domain = os.environ.get('DOMAIN', 'http://127.0.0.1:8000')
         if obj.thumbnail and hasattr(obj.thumbnail, 'url'):
-            if request:
-                return request.build_absolute_uri(obj.thumbnail.url)
-            return f'http://127.0.0.1:8000{obj.thumbnail.url}'
+            return f'{domain}{obj.thumbnail.url}'
         return ''
