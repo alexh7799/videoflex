@@ -25,7 +25,10 @@ def send_activation_email(domain, uid, token, email, username):
 
     Sends an account activation link to the user's email address.
     """
-    msg_image = image_attachment()
+    try:
+        msg_image = image_attachment()
+    except Exception as e:
+        msg_image = None
     activation_link = f"{domain}/pages/auth/activate.html?uid={uid}&token={token}"
     subject = "Confirm your email"
     html_content = f"""
@@ -45,7 +48,8 @@ def send_activation_email(domain, uid, token, email, username):
     </html>
     """
     msg = EmailMultiAlternatives(subject, '', settings.DEFAULT_FROM_EMAIL, [email])
-    msg.attach(msg_image)
+    if msg_image:
+        msg.attach(msg_image)
     msg.attach_alternative(html_content, "text/html")
     msg.send()
 
@@ -59,7 +63,10 @@ def send_password_reset_email(domain, uid, token, email):
         token (str): The token for password reset.
         email (str): The email address of the user.
     """
-    msg_image = image_attachment()
+    try:
+        msg_image = image_attachment()
+    except Exception as e:
+        msg_image = None
     reset_link = f"{domain}/pages/auth/confirm_password.html?uid={uid}&token={token}"
     subject = "Reset your Password"
     html_content = f"""
@@ -80,6 +87,7 @@ def send_password_reset_email(domain, uid, token, email):
    </html> 
     """
     msg = EmailMultiAlternatives(subject, '', settings.DEFAULT_FROM_EMAIL, [email])
-    msg.attach(msg_image)
+    if msg_image:
+        msg.attach(msg_image)
     msg.attach_alternative(html_content, "text/html")
     msg.send()

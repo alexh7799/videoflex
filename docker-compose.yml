@@ -9,7 +9,9 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_new:/var/lib/postgresql
+    networks:
+      - database-net
 
   redis:
     image: redis:latest
@@ -17,8 +19,10 @@ services:
     restart: unless-stopped
     volumes:
       - redis_data:/data
+    networks:
+      - database-net
 
-  web:
+  videoflix_backend:
     build:
       context: .
       dockerfile: backend.Dockerfile
@@ -28,56 +32,31 @@ services:
     volumes:
       - .:/app
       - videoflix_media:/app/media
-      - ./static:/app/static
+      - videoflix_static:/app/static
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.videoflix.rule=Host(`${DOMAIN}`)"
-      - "traefik.http.routers.videoflix.entrypoints=web,websecure"
-      - "traefik.http.routers.videoflix.tls.certresolver=myresolver"
-      - "traefik.http.services.videoflix.loadbalancer.server.port=8000"
+      - "traefik.http.routers.videoflix-backend.rule=Host(`videoflix.xn--alexander-hrst-5pb.de`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.videoflix-backend.entrypoints=web,websecure"
+      - "traefik.http.routers.videoflix-backend.tls.certresolver=myresolver"
+      - "traefik.http.services.videoflix-backend.loadbalancer.server.port=8080"
+    networks:
+      - videoflix-internal
+      - traefik-net
+      - database-net
     depends_on:
       - db
       - redis
 
-  # nginx:
-  #   image: nginx:latest
-  #   container_name: videoflix_nginx
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
-  #     - /etc/letsencrypt/live/${DOMAIN}/fullchain.pem:/etc/nginx/certs/fullchain.pem:ro
-  #     - /etc/letsencrypt/live/${DOMAIN}/privkey.pem:/etc/nginx/certs/privkey.pem:ro
-  #     - ./static:/app/static
-  #     - videoflix_media:/app/media
-  #   depends_on:
-  #     - web
-
-  traefik:
-    image: traefik:v3.0
-    container_name: videoflix_traefik
-    restart: unless-stopped
-    command:
-      - --api.insecure=true
-      - --providers.docker=true
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.myresolver.acme.tlschallenge=true
-      - --certificatesresolvers.myresolver.acme.email=deine-email@example.com
-      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
-    ports:
-      - "80:80"
-      - "443:443"
-      - "8080:8080"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./letsencrypt:/letsencrypt
-
+networks:
+  videoflix-internal:
+    external: true
+  traefik-net:
+    external: true
+  database-net:
+    external: false
 
 volumes:
-  postgres_data:
+  postgres_data_new:
   redis_data:
   videoflix_media:
   videoflix_static:
